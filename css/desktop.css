@@ -408,3 +408,112 @@
   color: #6c757d;
   font-size: 14px;
 }
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .winxp-desktop {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+  
+  .desktop-icons {
+    display: none !important;
+  }
+  
+  .taskbar {
+    display: none !important;
+  }
+  
+  .window {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    margin-bottom: 20px !important;
+    background: white !important;
+  }
+  
+  .window-header {
+    background: #f0f0f0 !important;
+    color: black !important;
+    border-bottom: 2px solid #ccc !important;
+    cursor: default !important;
+    page-break-after: avoid;
+  }
+  
+  .window-controls {
+    display: none !important;
+  }
+  
+  .window-content {
+    overflow: visible !important;
+    background: white !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  
+  .project-viewer {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  
+  .project-content {
+    padding: 20px !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+  
+  .project-content h1,
+  .project-content h2, 
+  .project-content h3 {
+    page-break-after: avoid;
+    color: black !important;
+  }
+  
+  .project-content p {
+    page-break-inside: avoid;
+    color: black !important;
+  }
+  
+  .image-wrapper {
+    page-break-inside: avoid;
+    background: white !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  .markdown-image {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure all content is visible */
+  * {
+    overflow: visible !important;
+  }
+  
+  /* Hide any scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+}
