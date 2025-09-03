@@ -25,7 +25,7 @@ class Desktop {
                 "content": `
 # Part 1: Selfie: The Wrong Way vs. The Right Way 
 
-<img src="assets/p0/s1.jpg" alt="Selfie Comparison" style="width: 200px; height: auto;">
+<img src="assets/p0/s1.JPG" alt="Selfie Comparison" style="width: 200px; height: auto;">
 <img src="assets/p0/s2.jpg" alt="Selfie Comparison" style="width: 200px; height: auto;">
 <img src="assets/p0/s3.jpg" alt="Selfie Comparison" style="width: 200px; height: auto;">
 <img src="assets/p0/s4.jpg" alt="Selfie Comparison" style="width: 200px; height: auto;">
@@ -36,8 +36,8 @@ Moving the camera backward by a feet made the things in the background look norm
 
 # Part 2: Architectural Perspective Compression
 
-<img src="assets/p0/env1.jpg" alt="Architectural Perspective Compression" style="width: 400px; height: auto;">
-<img src="assets/p0/env2.jpg" alt="Architectural Perspective Compression" style="width: 400px; height: auto;">
+<img src="assets/p0/env1.JPG" alt="Architectural Perspective Compression" style="width: 400px; height: auto;">
+<img src="assets/p0/env2.JPG" alt="Architectural Perspective Compression" style="width: 400px; height: auto;">
 
 In the first photo(zoomed in), thelong sidewalk and trees appear flattened. Distances between objects along the path look compressed and the objects such as parking meters, trees, and people in the background seem bunched closer together.
 In the second photo(closer photo without zoom), the depth is now exaggerated. The same parking meters and trees feel more spaced out, and you can tell more easily how far apart things are.
