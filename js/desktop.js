@@ -50,6 +50,257 @@ The effect here is caused by the relative differences. Standing farther away and
 
 Dolly Zoom Effect Demonstration on a Yoruba culture statue on a table (with other objects in the background to show image warp effect better)
 `
+            },
+            {
+                "id": "project1",
+                "name": "Project 1: Images of the Russian Empire",
+                "title": "Colorizing the Prokudin-Gorskii Photo Collection",
+                "content": `
+# Overview
+
+This project implements an automatic colorization algorithm for the digitized Prokudin-Gorskii glass plate images. 
+
+The goal is to take these digitized glass plate images and automatically produce color images by extracting the three color channels, aligning them, and combining them into a single RGB color image.
+
+## Approach
+
+The algorithm divides each glass plate image into three equal parts (B, G, R channels from top to bottom) and aligns the G and R channels to the B channel using a gradient-based pyramid alignment technique.
+
+### Algorithm Implementation
+
+The final implementation uses **gradient-based alignment with pyramid optimization**:
+
+1. **Cropping**: Use 1/3 margin cropping to avoid edge artifacts during alignment
+2. **Gradient-based scoring**: Uses image gradients/edges for alignment rather than raw pixel values, which is more robust when color channels have different brightness distributions
+3. **Search window**: Exhaustive search over a ±25 pixel displacement window for optimal alignment
+4. **Pyramid search**: For large images, implements a coarse-to-fine approach starting from downsampled versions and refining at higher resolutions
+5. **Normalized Cross-Correlation**: Computes alignment score using gradient information
+
+### NCC vs Gradient NCC
+
+The algorithm uses two different similarity metrics for alignment:
+
+**Standard NCC (Normalized Cross-Correlation)** which compares raw pixel intensities between image channels
+<div style="text-align: center; font-size: 16px; margin: 10px 0; font-family: 'Times New Roman', serif;"><em>NCC</em> = <span style="font-size: 20px;">∑</span> <em>I</em><sub>1</sub> · <em>I</em><sub>2</sub> / (||<em>I</em><sub>1</sub>|| · ||<em>I</em><sub>2</sub>||)</div>
+
+This works well when channels have similar brightness distributions but can fail when color filters create different exposure levels.
+
+**Gradient NCC** which compares gradient(using np.gradient()) instead of raw pixels  
+<div style="text-align: center; font-size: 16px; margin: 10px 0; font-family: 'Times New Roman', serif;"><em>NCC</em><sub>grad</sub> = <span style="font-size: 20px;">∑</span> ∇<em>I</em><sub>1</sub> · ∇<em>I</em><sub>2</sub> / (||∇<em>I</em><sub>1</sub>|| · ||∇<em>I</em><sub>2</sub>||)</div>
+
+This is more robust to brightness differences between color channels.
+
+## Results
+
+### Basic Cropping on Small Images
+
+Here are comparisons showing how the results differ when edge cropping is applied versus when it's not. The algorithm crops 1/3 margins from each side during alignment scoring to avoid edge artifacts that can mislead the alignment process.
+Edge regions of the glass plate images often contain artifacts, uneven illumination, or registration marks that can mislead the alignment algorithm. 
+**Cathedral**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/withoutCrop/cathedral.jpg.jpg" alt="Cathedral - Without Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Without Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (1, -1) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (7, -1)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/cathedral.jpg.jpg" alt="Cathedral - With Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>With Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (5, 2) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (12, 3)</p>
+</div>
+</div>
+
+**Monastery**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/withoutCrop/monastery.jpg.jpg" alt="Monastery - Without Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Without Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (-6, 0) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (9, 1)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/monastery.jpg.jpg" alt="Monastery - With Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>With Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (-3, 2) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (3, 2)</p>
+</div>
+</div>
+
+**Tobolsk**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/withoutCrop/tobolsk.jpg.jpg" alt="Tobolsk - Without Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Without Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (3, 2) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (6, 3)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/tobolsk.jpg.jpg" alt="Tobolsk - With Cropping" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>With Cropping</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (3, 3) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (7, 3)</p>
+</div>
+</div>
+
+### Large Images with Consistent Alignment
+
+These large images achieved consistent alignment results using the pyramid approach and the normal cross correlation approach. 
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; justify-items: center;">
+
+<div style="text-align: center;">
+<img src="assets/p1/in/church.tif.jpg" alt="Church" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Church</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (25, 4) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (58, -4)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/lugano.tif.jpg" alt="Lugano" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Lugano</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (40, -15) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (92, -28)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/siren.tif.jpg" alt="Siren" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Siren</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (49, -5) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (96, -23)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/italil.tif.jpg" alt="Italil" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Italil</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (37, 21) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (76, 36)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/lastochikino.tif.jpg" alt="Lastochikino" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Lastochikino</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (-3, -2) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (75, -8)</p>
+</div>
+
+</div>
+
+### Gradient NCC
+
+These large images required gradient-based alignment to achieve proper results, showing dramatic improvements over pixel-based methods.
+
+**Emir**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/emir.tif.jpg" alt="Emir - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (48, 24) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (56, 12)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/emir.tif.jpg" alt="Emir - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (49, 24) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (106, 41)</p>
+</div>
+</div>
+
+**Self Portrait**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/self_portrait.tif.jpg" alt="Self Portrait - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (66, 25) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (9, 61)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/self_portrait.tif.jpg" alt="Self Portrait - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (77, 29) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (175, 37)</p>
+</div>
+</div>
+
+**Melons**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/melons.tif.jpg" alt="Melons - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (66, 5) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (66, 17)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/melons.tif.jpg" alt="Melons - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (82, 10) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (178, 13)</p>
+</div>
+</div>
+
+**Three Generations**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/three_generations.tif.jpg" alt="Three Generations - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (50, 14) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (66, 10)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/three_generations.tif.jpg" alt="Three Generations - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (49, 15) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (109, 11)</p>
+</div>
+</div>
+
+**Harvesters**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/harvesters.tif.jpg" alt="Harvesters - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (59, 17) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (66, 14)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/harvesters.tif.jpg" alt="Harvesters - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (59, 17) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (123, 15)</p>
+</div>
+</div>
+
+**Icon**
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p1/basicin/icon.tif.jpg" alt="Icon - Before" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Standard NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (41, 18) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (66, 23)</p>
+</div>
+<div style="text-align: center;">
+<img src="assets/p1/in/icon.tif.jpg" alt="Icon - After" style="width: 300px; height: auto; display: block; margin: 0 auto;">
+<p><em>Gradient NCC</em></p>
+<p style="font-size: 12px;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (41, 18) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (89, 23)</p>
+</div>
+</div>
+
+### Collection Photos
+
+Here are some additional images from the Prokudin-Gorskii collection.
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; justify-items: center;">
+
+<div style="text-align: center;">
+<img src="assets/p1/in/[COLLECTION] Napoleon.jpg.jpg" alt="Napoleon" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Napoleon</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (6, 1) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (13, 0)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/[COLLECTION] Woman in traditional.tif.jpg" alt="Woman in Traditional Dress" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Woman in Traditional Dress</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (48, 40) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (109, 56)</p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p1/in/[COLLECTION]Milan.tif.jpg" alt="Milan" style="width: 100%; height: auto; max-width: 280px; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Milan</h4>
+<p style="font-size: 12px; margin: 5px 0;"><span style="color: #22c55e; font-weight: 500;">Green Shift:</span> (55, 14) | <span style="color: #ef4444; font-weight: 500;">Red Shift:</span> (124, 25)</p>
+</div>
+
+</div>
+
+
+`
             }
         ];
 
