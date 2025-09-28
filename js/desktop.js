@@ -368,6 +368,11 @@ def conv_two_loops(img, kern):
 
 
 <img src="assets/p2/1.1.png" alt="Finite Difference Result" style="width: 100%; height: auto;">
+
+Overall, the scipy implementation was much faster and more efficient than the custom implementations but the two loop was a bit faster than the four loop implementation.
+
+The convolution layer I applied here was a simple blur filter 3x3 kernel of 1/9 values, adding a gradual blur over the image.
+
 There is also a my picture gone through the Dx and Dy operators to detect the vertical and horizontal edges.
 
 
@@ -585,10 +590,14 @@ Here is the recreation of the textbook figure from the oranple creation, showing
 For this section, I had to work upon 2.3 and recreate the oraple type blended images myself.
 
 For the blending, I created 2 different masks, horizontal and irregular masks.
-For the Irregular masks, I created elliptical masks with customizable parameters and added parameters to position masks anywhere in the image.
+For the horizontal masks, I created horizontal masks allowing for the left and right sides of the image to be blended cleanly.
+To reduce the blend noise, I created the mask using np.linspace rather than np.ones and np.zeros, making the transition between the two images more smooth.
 
-For the multi-scale processing, I applied masks at each pyramid level.
-For the horizontal masks, I created horizontal masks with customizable parameters.
+For the Irregular masks, I created elliptical masks with customizable parameters and added parameters to position masks anywhere in the image.
+I also added a noise variable to determine the strength of the mask when overlaying the image.
+
+
+For the multi-scale processing aspect of this section, I applied the masks at each pyramid level using the Laplacian and Gaussian stacks.
 
 
 ### 2.4.1 Orange + Apple = Oraple
@@ -651,7 +660,7 @@ Below also is the pyrmamid break down of the image highlighting exactly how it w
 ### 2.4.4 There is something in my Malatang
 
 Here is my friend Owen irregularly blended into the a dish of Malatang.
-I used the irregular mask for this project, creating an eclipse around the subject's face and inserting him in the center of the dish.
+I used the irregular mask for this project, creating an eclipse around the subject's face and inserting him in the center of the dish, I also reduced the noice to make the appearance of the center of dish look more abrupt.
 
 <img src="assets/p2/2.4.3.png" alt="Creative Application" style="width: 100%; height: auto display: block; margin: 0 auto;">
 
@@ -663,9 +672,6 @@ This was a super cool project where I spent a lot of time exploring different bl
 
 I was able to develop a better understanding of the frequency details, convolutions, multi-scale processing, and more, utiilzing all these techniquesto create interesting and creative images.
 
-Thank you!
-
-This project successfully demonstrated fundamental computer vision concepts:
 `}
     ];
 
