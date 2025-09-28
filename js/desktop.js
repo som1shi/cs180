@@ -51,9 +51,9 @@ The effect here is caused by the relative differences. Standing farther away and
 Dolly Zoom Effect Demonstration on a Yoruba culture statue on a table (with other objects in the background to show image warp effect better)
 `
             },
-            {
-                "id": "project1",
-                "name": "Project 1: Images of the Russian Empire",
+{
+"id": "project1",
+"name": "Project 1: Images of the Russian Empire",
                 "title": "Colorizing the Prokudin-Gorskii Photo Collection",
                 "content": `
 # Overview
@@ -300,11 +300,375 @@ Here are some additional images from the Prokudin-Gorskii collection.
 </div>
 
 
-`
-            }
-        ];
+`},
+{
+"id": "project2",
+"name": "Project 2: Fun with Filters and Frequencies",
+"title": "Fun with Filters and Frequencies",
+"content": `
+# Overview
 
-        console.log(`✅ Loaded ${this.projects.length} projects for GitHub Pages`);
+In this project, I implemented various image processing techniques using filters and frequency domain operations.
+This involved implementing convolutions from scratch, finite difference operators, and Derivative of Gaussian (DoG) Filter.
+I also implemented unsharp masking technique for image enhancement and multi-resolution image decomposition.
+
+# Part 1: Fun with Filters
+
+## 1.1 Convolutions from Scratch
+
+I implemented 2D convolution using two different approaches:</p>
+
+<ul>
+<li><strong>Four-loop implementation:</strong> Nested loops for image rows, columns, and kernel dimensions</li>
+
+For the four-loop implementation, I used nested loops to iterate over the image and kernel.
+
+\`\`\`python3
+def conv_four_loops(img, kern):
+    h, w = img.shape
+    kh, kw = kern.shape
+    padH, padW = kh // 2, kw // 2
+    
+    pad = np.zeros((h + 2 x padH, w + 2 x padW))
+    pad[padH:padH + h, padW:padW + w] = img
+    
+    out = np.zeros_like(img)
+    for y in range(h):
+        for x in range(w):
+            for i in range(kh):
+                for j in range(kw):
+                    out[y, x] += pad[y + i, x + j] * kern[i, j]
+    return out
+\`\`\`
+
+
+<li><strong>Two-loop implementation:</strong> Optimized version using numpy array operations for kernel multiplication</li>
+
+For the two-loop implementation, I used numpy array operations to iterate over the image and kernel.
+
+\`\`\`python3
+def conv_two_loops(img, kern):
+    h, w = img.shape
+    kh, kw = kern.shape
+    padH, padW = kh // 2, kw // 2
+    
+    pad = np.zeros((h + 2 x padH, w + 2 x padW))
+    pad[padH:padH + h, padW:padW + w] = img
+    flipped = np.flip(kern, axis=(0, 1))
+    
+    out = np.zeros_like(img)
+    for y in range(h):
+        for x in range(w):
+            region = padded[i:i+kh, j:j+kw]
+            out[x, y] = np.sum(region * flipped)
+    return out
+\`\`\`
+
+<li><strong>Scipy Implementation:</strong> \Verified results match <code>scipy.signal.convolve2d</code></li>
+
+
+<img src="assets/p2/1.1.png" alt="Finite Difference Result" style="width: 100%; height: auto;">
+There is also a my picture gone through the Dx and Dy operators to detect the vertical and horizontal edges.
+
+
+
+### 1.2 Finite Difference Operator
+
+For this part of the project, I implemented a finite difference operator to detect edges in the cameraman image.
+I used the Dx and Dy operators to detect edges in the image and combined them using the gradient magnitude formula.
+We then applied a threshold of 0.07 to create a binary edge image.
+
+\`\`\`python3
+partial_x = convolve2d(cameraman, Dx, mode='same')
+partial_y = convolve2d(cameraman, Dy, mode='same')
+gradient_magnitude = np.sqrt(partial_x^2 + partial_y^2)
+\`\`\`
+
+I were able to detect the edges of the buildings and the grass while filtering out most sky noise and I tried to keep most of the skyline intact.
+The threshold of 0.07 was a decent enough balance between edge preservation and noise suppression.
+
+<img src="assets/p2/1.2.png" alt="Derivative of Gaussian" style="width: 100%; height: auto;">
+
+
+### 1.3 Derivative of Gaussian (DoG) Filter
+
+Thenm I implemented a Derivative of Gaussian (DoG) Filter to enhance edge detection.
+This involved applying a Gaussian filter to the image and then computing the gradients of the image(σ=2.0, kernel size=15x15).
+I then created derivative of Gaussian filters by convolving Gaussian kernel with Dx and Dy.
+Then, I applied a threshold of 0.07 to create a binary edge image.
+
+
+Here is the DoG filters visualization.
+
+<div style="text-align: center;">
+<img src="assets/p2/1.3.png" alt="Sharpening Result" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
+
+Here are the results of the DoG filters.
+This significantly reduced the noise in the gradient computation and enabled us to see a much clearer image while using the same threshold of 0.07 compared to raw finite differences.
+
+
+
+<div style="text-align: center;">
+<img src="assets/p2/1.3p2.png" alt="Sharpening Process" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
+
+# Part 2: Fun with Frequencies
+
+## 2.1 Image "Sharpening"
+
+For this part of the project, I implemented an unsharp masking technique for image enhancement.
+This involved subtracting a Gaussian-blurred version from the original image and then adding the result back to the original image.
+The formula for the unsharp masking is \`sharpened = original + α × (original - blurred)\`.
+Since we are applying the unsharp masking to the image, we need to apply it to each color channel separately.
+
+
+For the blurring, we use a adjustable blur strength (σ) and enhancement factor (α)
+
+
+**Technical Implementation:**
+\`\`\`python3
+def sharpner(img, sigma, alpha):
+    for channel in range(s_image.shape[2]):
+        blurred_channel = convolve2d(s_image[:,:,channel], gaussian_2d, mode='same')
+        high_freq = s_image[:,:,channel] - blurred_channel
+        sharpened[:,:,channel] = s_image[:,:,channel] + alpha * high_freq
+\`\`\`
+
+
+### 2.1.1 Taj Mahal
+
+This is the result of the unsharp masking on the Taj Mahal image.
+We applied multiple different alpha values to see the effect of the unsharp masking.
+The stronger the alpha value, the more sharp the image becomes. At the very higher alpha values, the image becomes too sharp and the details look very unnatural.
+
+<div style="text-align: center;">
+<img src="assets/p2/2.1.1.0.png" alt="Low Frequency Component" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
+
+<img src="assets/p2/2.1.1.1.png" alt="Low Frequency Component" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<img src="assets/p2/2.1.1.2.png" alt="Low Frequency Component" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<img src="assets/p2/2.1.1.4.png" alt="Low Frequency Component" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+
+
+### 2.1.2 Berkeley Campus
+
+Here is the result of the unsharp masking on the Berkeley Campus image.
+<div style="text-align: center;">
+<img src="assets/p2/2.1.2.png" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
+
+### 2.1.3 Goat across Washington Cascades
+
+I actually blurred the image from the get-go and tried to apply the unsharp masking to the image.
+The result was good and I was able to recreate the picture similar to the original by pumping the parameters up.
+
+Since I added a general noise across the image, I had to increase the sigma values too.
+
+<div style="text-align: center;">
+<img src="assets/p2/2.1.3.png" alt="Hybrid Image" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
+
+
+### 2.2 Hybrid Images
+
+For this part of the project, I implemented a hybrid image technique.
+
+This componenet involved having a low pass filter and a high pass filter and then adding them together.
+For both we use an adjustable cutoff frequency (σ).
+
+For this project, the choices of the kind of images and the cutoff frequency were very important.
+Images with distinct features and sometimes similar features among each other created very interesting blend results.
+
+For the varation in the cutoff frequency, I found using higher cutoff frequency for the high-pass filter and lower cutoff frequency for the Gaussian blur resulted in a more pronounced low-frequency component, while a higher cutoff frequency for the high-pass filter emphasized more details from the second image.
+We were limited to grayscale images.
+
+I also worked on FFT analysis for frequency domain visualization.
+This helped me understand the frequency domain of the images and how the different frequency components are combined to create the hybrid image.
+
+
+Here is a rough implemntation of the hybrid image.
+\`\`\`python3
+def hybrid_image(im1, im2, sigma1, sigma2):
+    # Convert to grayscale
+    im1_gray = color.rgb2gray(im1)
+    im2_gray = color.rgb2gray(im2)
+    
+    gaussian_2d1 = np.outer(cv2.getGaussianKernel(kernel_size, sigma1), cv2.getGaussianKernel(kernel_size, sigma1).T)
+    gaussian_2d2 = np.outer(cv2.getGaussianKernel(kernel_size, sigma2),cv2.getGaussianKernel(kernel_size, sigma2).T)
+    
+    low_freq = convolve2d(im2_gray, gaussian_2d2, mode='same')
+    high_freq = im1_gray - convolve2d(im1_gray, gaussian_2d1, mode='same')
+    
+    return np.clip(low_freq + high_freq, 0, 1)
+\`\`\`
+
+
+### 2.2.1 Derek and Nutmeg
+
+Here is the result of the hybrid image on the Derek and Nutmeg image. I used the cutoff frequency of 6 and 3 for the high and low pass filters respectively.
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p2/2.2.1.png" alt="Derek and Nutmeg" style="width: 400px; height: auto; display: block; margin: 0 auto;">
+</div>
+<div style="text-align: center;">
+<img src="assets/p2/2.2.1.2.png" alt="Derek and Nutmeg FFT Breakdown" style="width: 600px; height: auto; display: block; margin: 0 auto;">
+</div>
+</div>
+
+
+### 2.2.2 K Spice
+
+This is a blend of my roommate Kinshuk and popular artist Ice Spice. My inspiration was from the similarities in their hairstyle and facial expressions. 
+I used the cutoff frequency of 5 and 1.5 for the high and low pass filters respectively.
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p2/2.2.2.1.png" alt="K Spice" style="width: 400px;   height: auto; display: block; margin: 0 auto;">
+</div>
+<div style="text-align: center;">
+<img src="assets/p2/2.2.2.2.png" alt="K Spice FFT Breakdown" style="width: 600px; height: auto; display: block; margin: 0 auto;">
+</div>
+</div>
+
+
+### 2.2.3 Merrick Motion Blur
+
+
+This is a blend of my acquaintance Merrick with 2 stills that involve him turning around. I wanted to capture almost a motion blur effect through the blending. I used the cutoff frequency of 5 and 3 for the high and low pass filters respectively.
+
+If you zoom in, you can see merrick starting at you, while if you zoom out, you can see merrick turning around. 
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p2/2.2.3.1.png" alt="Merrick Motion Blur" style="width: 400px; height: auto; display: block; margin: 0 auto;">
+</div>
+<div style="text-align: center;">
+<img src="assets/p2/2.2.3.2.png" alt="Merrick Motion Blur FFT Breakdown" style="width: 600px; height: auto; display: block; margin: 0 auto;">
+</div>
+</div>
+
+
+### 2.2.4 Long Face Emote
+
+I was experimenting with anmimated chracters and people blending in this. I tried to capture the emotion of the character through the blending both animate and real-life.
+I used the cutoff frequency of 10 and 4 for the high and low pass filters respectively.
+
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+<div style="text-align: center;">
+<img src="assets/p2/2.2.4.1.png" alt="Long Face Emote" style="width: 400px; height: auto; display: block; margin: 0 auto;">
+</div>
+<div style="text-align: center;">
+<img src="assets/p2/2.2.4.2.png" alt="Long Face Emote FFT Breakdown" style="width: 600px; height: auto; display: block; margin: 0 auto;">
+</div>
+</div>
+
+### 2.3 Gaussian and Laplacian Stacks
+
+For this part, I implemnted both the Guassian stack and the Laplacian stack. 
+I was using a fixed kernel size of 9x9 for the Gaussian stack and the Laplacian stack.
+For the Gaussian stack, I used a progressive smoothing with increasing σ values.
+For the Laplacian stack, I used a difference between consecutive Gaussian levels.
+
+I also worked on the visualization of the frequency bands.
+Moreover, I used a proper normalization for displaying frequency bands.
+
+Here is the recreation of the textbook figure from the oranple creation, showing the 4 levels of the Gaussian and Laplacian stacks.
+
+<img src="assets/p2/2.3.png" alt="Gaussian and Laplacian Stacks" style="width: 100%; height: auto;">
+
+
+
+### 2.4 Multiresolution Blending
+
+For this section, I had to work upon 2.3 and recreate the oraple type blended images myself.
+
+For the blending, I created 2 different masks, horizontal and irregular masks.
+For the Irregular masks, I created elliptical masks with customizable parameters and added parameters to position masks anywhere in the image.
+
+For the multi-scale processing, I applied masks at each pyramid level.
+For the horizontal masks, I created horizontal masks with customizable parameters.
+
+
+### 2.4.1 Orange + Apple = Oraple
+
+Here is the recreation of the oraple type blended images.
+
+I used the horizontal masks for the blending.
+And then at the bottom is the level by level blending of the masks.
+
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.1.0.png" alt="Enhancement Base" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Base Image</h4>
+<p style="font-size: 12px; margin: 5px 0;"><em>Base image for enhanced processing</em></p>
+</div>
+
+
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.1.01.png" alt="Enhancement Step 1" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Final Result</h4>
+<p style="font-size: 12px; margin: 5px 0;"><em>First enhancement step</em></p>
+</div>
+
+### 2.4.2 Symmetry of Architecture
+
+This project has Humayun’s Tomb and Taj Mahal blended together.
+I was enaboured by the symmetry and simmilarities of both of the classic Indian architectural wonders.
+I used the horizontal masks for the blending.
+And then at the bottom is the level by level blending of the masks.
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.1.1.png" alt="Enhancement Step 2" style="width: 100%; height: auto;  display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Gaussian Blur and Laplacian Stack</h4>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.1.2.png" alt="Enhancement Final" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<h4 style="margin: 10px 0 5px 0;">Final Result</h4>
+</div>
+
+### 2.4.3 The Emir of Glendora
+
+
+Here is my friend Nathan blended into the Emir project from Project 1. 
+I utilized the irregular mask for this project, creating a circular mask with an offset to have a perfect blend between the subject's face and the emir's outline.
+
+Below also is the pyrmamid break down of the image highlighting exactly how it was made utilizing laplassian and gaussian stacks.
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.2.png" alt="Experiment 1" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<p><em>Additional experimental technique</em></p>
+</div>
+
+<div style="text-align: center;">
+<img src="assets/p2/2.4.2.2.png" alt="Experiment 2" style="width: 100%; height: auto; display: block; margin: 0 auto;">
+<p><em>Further experimental results</em></p>
+</div>
+
+### 2.4.4 There is something in my Malatang
+
+Here is my friend Owen irregularly blended into the a dish of Malatang.
+I used the irregular mask for this project, creating an eclipse around the subject's face and inserting him in the center of the dish.
+
+<img src="assets/p2/2.4.3.png" alt="Creative Application" style="width: 100%; height: auto display: block; margin: 0 auto;">
+
+
+
+## Conclusion
+
+This was a super cool project where I spent a lot of time exploring different blending techniques and how to use them to create interesting and creative images.
+
+I was able to develop a better understanding of the frequency details, convolutions, multi-scale processing, and more, utiilzing all these techniquesto create interesting and creative images.
+
+Thank you!
+
+This project successfully demonstrated fundamental computer vision concepts:
+`}
+    ];
+
     }
 
     createDesktop() {
@@ -695,34 +1059,50 @@ class ProjectViewer {
     markdownToHtml(markdown) {
         let html = markdown.trim();
 
-        // Headers
+        html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+            const lang = language || '';
+            const escapedCode = code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            return `<pre><code class="language-${lang}">${escapedCode}</code></pre>`;
+        });
+
         html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
         html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
         html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-        // Bold and Italic
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
-        // Images ![alt](src)
         html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<div class="image-wrapper"><img src="$2" alt="$1" class="markdown-image"><p class="image-caption">$1</p></div>');
 
-        // Links [text](url)
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
 
-        // Inline code `code`
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-        // Lists
         const lines = html.split('\n');
         let inList = false;
         let inOrderedList = false;
+        let inCodeBlock = false;
         const result = [];
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             
-            // Ordered list
+            if (line.includes('<pre><code')) {
+                inCodeBlock = true;
+            } else if (line.includes('</code></pre>')) {
+                inCodeBlock = false;
+            }
+            
+            if (inCodeBlock || line.startsWith('<') || line.includes('<img') || line.includes('<div')) {
+                result.push(line);
+                continue;
+            }
+            
             if (/^\d+\.\s/.test(line)) {
                 if (!inOrderedList) {
                     if (inList) {
@@ -757,7 +1137,7 @@ class ProjectViewer {
                     inOrderedList = false;
                 }
                 
-                // Paragraphs
+                // Paragraphs (only for non-HTML lines)
                 if (line.trim() && !line.startsWith('<')) {
                     result.push(`<p>${line}</p>`);
                 } else {
