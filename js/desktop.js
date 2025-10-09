@@ -672,7 +672,187 @@ This was a super cool project where I spent a lot of time exploring different bl
 
 I was able to develop a better understanding of the frequency details, convolutions, multi-scale processing, and more, utiilzing all these techniquesto create interesting and creative images.
 
-`}
+`}, 
+
+{
+    "id": "project3",
+    "name": "Project 3: Stitching Photo Mosaics",
+    "title": "Stitching Photo Mosaics",
+    "content": `
+    ## Project Overview
+
+This project explores image warping and mosaicing techniques. The goal is to capture multiple photographs with projective transformations between them and create seamless image mosaics through homography recovery, image warping, and alpha-blended compositing.
+
+
+## Images and Homographies
+
+I shot multiple sets of photographs with projective transformations(i.e fixed center of projection, rotating camera).
+I utilized correspondences between the images to visualize the roation and similar points of interests across the scene.
+
+
+### Image 1: Cascades Mountain Scene
+![Mountain](assets/p3/1.1.1.png)
+![Mountain Correspondance](assets/p3/1.1.2.png)
+
+**Recovered Homography H:**
+\`\`\`
+[[ 1.354e+00  6.151e-05 -4.738e+02]
+ [ 3.240e-01  1.338e+00 -1.444e+02]
+ [ 7.027e-04  2.228e-05  1.000e+00]]
+\`\`\`
+
+### Image 2: Train Panorama
+![Train Scene](assets/p3/1.1.3.png)
+![Train Scence Correspondance](assets/p3/1.1.4.png)
+
+
+**Recovered Homography H:**
+\`\`\`
+[[ 6.404e-01 -4.078e-02 -2.243e+02]
+ [-1.940e-01  7.253e-01  8.731e+01]
+ [-6.686e-04  1.201e-04  1.000e+00]]
+\`\`\`
+
+
+### Homography and System of Equations
+
+Homography **H** is a 3×3 matrix with 8 degrees of freedom that transforms points: **p' = Hp**
+
+We set up a system of equations **Ah = b** where **h** contains the 8 unknowns of **H** (with H[2,2]=1).
+
+\`\`\`
+
+⎡ a  b  c ⎤   ⎡ x₁ ⎤     ⎡ wx₁' ⎤
+⎢ d  e  f ⎥ × ⎢ y₁ ⎥  =  ⎢ wy₁' ⎥
+⎣ g  h  1 ⎦   ⎣ 1  ⎦     ⎣  w   ⎦
+\`\`\`
+
+For each correspondence (x,y) → (x',y'), we get 2 equations:
+\`\`\`
+- x' = (h₁·x + h₂·y + h₃) / (h₇·x + h₈·y + 1)
+- y' = (h₄·x + h₅·y + h₆) / (h₇·x + h₈·y + 1)
+\`\`\`
+Rearranging to linear form:
+\`\`\`
+- x·h₁ + y·h₂ + h₃ - x'·x·h₇ - x'·y·h₈ = x'
+- x·h₄ + y·h₅ + h₆ - y'·x·h₇ - y'·y·h₈ = y'
+\`\`\`
+
+For each point correspondence (x₁, y₁) → (x₁', y₁'), we create two rows:
+
+\`\`\`
+⎡ x₁  y₁  1   0   0  0  -x₁'x₁  -x₁'y₁ ⎤     ⎡ a ⎤     ⎡ x₁' ⎤
+⎣  0   0  0  x₁  y₁  1  -y₁'x₁  -y₁'y₁ ⎦  ×  ⎢ b ⎥  =  ⎣ y₁' ⎦
+                                              ⎢ c ⎥
+                                              ⎢ d ⎥
+                                              ⎢ e ⎥
+                                              ⎢ f ⎥
+                                              ⎢ g ⎥
+                                              ⎣ h ⎦
+\`\`\`
+
+For n correspondences, we get 2n equations of the form **Ph = q**, which we solve using least squares: **h = (PᵀP)⁻¹Pᵀq**.
+
+
+
+## Warping and Rectification
+
+fter we recovered the homography, we want to be able to warp images using it. To do this, we take the 4 corners of the image we would like to warp and apply **H** to get the transformed coordinates in the warped image space.
+
+For an image with width **w** and height **h**, we transform the corners:
+
+\`\`\`
+corners = [[0, 0], [w-1, 0], [0, h-1], [w-1, h-1]]
+warped_corners = H × corners
+\`\`\`
+
+After applying the homography, we need to normalize by the homogeneous coordinate:
+
+\`\`\`
+warped_corners = warped_corners[:2] / warped_corners[2]
+\`\`\`
+
+Afterwards, we create a **bounding box** in the warped image that contains these morphed corners. This determines the output image dimensions:
+
+\`\`\`
+min_x = floor(min(warped_corners[0]))
+max_x = ceil(max(warped_corners[0]))
+min_y = floor(min(warped_corners[1]))
+max_y = ceil(max(warped_corners[1]))
+output_size = (max_y - min_y + 1, max_x - min_x + 1)
+\`\`\`
+
+
+### Nearest Neighbor
+
+I found that NN interpolation is very fast as it rounded coordinates to its nearest neighbours and was around 2-3x faster than Bilinear.
+However, this speed comes at the cost of quality—results often appear blocky and pixelated, with jagged edges and visible staircase artifacts due to alisasing Smooth gradients turn into harsh bands, and fine details lose clarity. It’s best suited for quick tests, debugging, or real-time previews where performance matters more than visual fidelity.
+
+### Bilinear
+
+Bilinear interpolation produces much smoother and more visually appealing results by computing a weighted average of the four nearest pixels for each output pixel. This yields anti-aliased edges, continuous gradients, and clearer fine details, making the output look more professional and natural.
+
+For our mosaics, we use **bilinear interpolation** to ensure high-quality seamless blending.
+
+### Rectification
+
+Before creating full mosaics, we can test our homography and warping implementation through **rectification** - making distorted rectangular objects appear rectangular.
+
+For rectification, we:
+1. Select 4 corner points of a known rectangular object in the image (e.g., a poster, sign, or building facade)
+2. Store these as \`im1_pts\` (source points from the distorted image)
+3. Define \`im2_pts\` by hand to be a rectangle:
+   \`\`\`
+   im2_pts = [[0, 0], [w-1, 0], [0, h-1], [w-1, h-1]]
+   \`\`\`
+   where \`w\` and \`h\` are the desired width and height of the rectified object, we used the shape of the input image for our case.
+
+This creates a homography that maps the distorted quadrilateral to a perfect rectangle. Since we know the object should be rectangular in the real world, this effectively "undoes" the perspective distortion.
+
+Demonstrating rectification on images with known rectangular objects:
+
+### Example 1: Road Sign Rectification
+![Rectification Example 1](assets/p3/1.3.png)
+
+### Example 2: Art Rectification
+![Rectification Example 2](assets/p3/1.3.1.png)
+
+The artificats that NN creates are more visble when zoomed into but with lower quality front facing pictures, its less prevelant.
+
+
+## A.4: Blend Images into a Mosaic
+
+### Blending Procedure
+
+Our mosaic pipeline uses **weighted averaging with alpha masks** to create seamless blends.
+
+Firstly, we compute the canvas size, transofrming all 4 corners of each image through their respective homographies. Then I found the bounding box (min/max x and y) that contains all warped corners which determines the final mosaic dimensions
+
+I applied translation matrix **T** to shift all images into positive coordinates and then warped each image using **T @ H** (where H is the homography to reference frame) using bilinear interpolation for smooth, high-quality warping. All warped images now exist in the same coordinate system with same dimensions
+
+Finally, I created alpha masks (feathering) for each warped image by applying \`distance_transform_edt\` to compute distance from image boundaries and then normalizing distances: **alpha = distance / max_distance**. This creates a natural feathering effect.
+
+For each pixel location (x, y) in the mosaic:
+- **numerator = Σ(image_i[x,y] × alpha_i[x,y])** - weighted sum of pixel values
+- **denominator = Σ(alpha_i[x,y])** - sum of weights
+- **final_pixel = numerator / denominator** - normalized weighted average
+
+In overlap regions, pixels near image centers get higher weight, creating smooth transitions without visible seams or ghosting.
+
+### Mosaic Results
+
+### Mosaic 1: Cascade Mountains
+![Moasic1](assets/p3/1.4.1.png)
+
+### Mosaic 2: Train Scene
+![Mosaic 2](assets/p3/1.4.2.png)
+
+#### Mosaic 3: Emerald Lake
+![Mosaic 3](assets/p3/1.4.3.png)
+
+
+    `}
+
     ];
 
     }
