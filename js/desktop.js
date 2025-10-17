@@ -847,11 +847,99 @@ In overlap regions, pixels near image centers get higher weight, creating smooth
 ### Mosaic 2: Train Scene
 ![Mosaic 2](assets/p3/1.4.2.png)
 
-#### Mosaic 3: Emerald Lake
+### Mosaic 3: Emerald Lake
 ![Mosaic 3](assets/p3/1.4.3.png)
 
+# Part 2: AutoStitching
 
-    `}
+This part of the project is about automatically stitching images together, rather than manualy picking correspondances like in the previous copy.
+
+## Harris Corner Detection
+
+To start this part, we utilized Harris detector to find interest points in the images.
+
+Then we applied Adaptive Non-Maximal Suppression (ANMS) to keep a spatially uniform subset of strong corners.
+A uniform spatial distribution of features is very important for accurately estimating a homography. ANMS ensures this by selecting points that are not just strong, but also well-separated, providing a more stable geometric foundation for the subsequent alignment.
+We went from having around 20000 cornerss to limited to 500 points which were evenly distributed across the image.
+
+![Harris corners (no ANMS)](assets/p3.5/1.1.png)
+![Harris corners (with ANMS)](assets/p3.5/1.2.png)
+
+
+## Feature Descriptor Extraction
+
+Then we extracted feature descriptors from the interest points.
+From each ANMS-selected keypoint, I extracted an axis-aligned 8×8 descriptor sampled from a blurred 40×40 window centered at the keypoint. Each descriptor vector was also normalized by subtracting its mean and dividing by its standard deviation. This normalization makes the descriptor invariant to affine changes in illumination, meaning it is more robust to differences in brightness and contrast between the two images
+
+It was clear that edges/corners produce distinctive, high-contrast 8×8 patterns; flat regions are less informative.
+
+![Descriptors](assets/p3.5/1.3.1.png)
+![Parts of the picture with descriptors](assets/p3.5/1.3.2.png)
+
+
+## Feature Matching
+
+Then the idea was to match descriptors across image pairs using SSD distance and Lowe’s ratio test to reject ambiguous matches.
+Let \`d_1\` and \`d_2\` be nearest and second-nearest SSDs. Accept if \`r = d_1/d_2 < \tau\` (I used \`\tau \approx 0.67\`).
+
+![Matches: Mountains](assets/p3.5/1.3.3.png)
+![Matches: Train](assets/p3.5/1.3.4.png)
+
+
+## RANSAC for Robust Homography and Mosaics
+
+Even after applying Lowe's ratio test, the set of matched features inevitably contains outliers that do not conform to the true geometric transformation between the images. To robustly estimate the homography from this noisy data, we implemented the Random Sample Consensus (RANSAC) algorithm.
+
+Then, I utilized RANSAC to estimate homographies. The idea was to iteratively select a random sample of 4 correspondence points (the minimum required to solve for an 8-DoF homography), computes a candidate homography \`H\`, and then counts how many other matches are consistent with this model.
+
+Finally,  these images are then blended images similar to the first part to form mosaics.
+You can see some of the original outlier descriptiors matched grayed out when comparing the 2 images and then the RANSAC matched ones are highlighted in green.
+
+![Auto 1](assets/p3.5/1.4.1.png)
+![Auto 2](assets/p3.5/1.4.2.png)
+![Auto 3](assets/p3.5/1.4.3.png)
+
+## Comparsion of Manual and Automatic Stitching
+
+Here is a comparison of the manual and automatic stitching results.
+We can see that the automatic stitching results are very similar to the manual stitching results.
+The automatic stitching results are a bit more smooth and since the points are more uniform and properly aligned, the level of angle change in the perspective is less.
+Hence automatic stiching looks a bit more natural and less distorted. However, overall if done right, manual stitching can be just as good with the correct points and homographies.
+
+<div style="display:flex; gap:12px; align-items:flex-start; margin:10px 0 20px;">
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.1.png" alt="Manual 1" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Manual 1</figcaption>
+</figure>
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.1.1.png" alt="Auto 1" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Auto 1</figcaption>
+</figure>
+</div>
+
+<div style="display:flex; gap:12px; align-items:flex-start; margin:10px 0 20px;">
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.2.png" alt="Manual 2" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Manual 2</figcaption>
+</figure>
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.2.1.png" alt="Auto 2" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Auto 2</figcaption>
+</figure>
+</div>
+
+<div style="display:flex; gap:12px; align-items:flex-start; margin:10px 0 20px;">
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.3.png" alt="Manual 3" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Manual 3</figcaption>
+</figure>
+<figure style="flex:1; text-align:center; margin:0;">
+<img src="assets/p3.5/2.3.1.png" alt="Auto 3" style="max-width:100%; height:auto;">
+<figcaption style="margin-top:8px; font-style:italic;">Auto 3</figcaption>
+</figure>
+</div>
+
+`}
 
     ];
 
