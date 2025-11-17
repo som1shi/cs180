@@ -939,7 +939,243 @@ Hence automatic stiching looks a bit more natural and less distorted. However, o
 </figure>
 </div>
 
-`}
+`},
+{
+    "id": "project4",
+    "name": "Project 4: Neural Radiance Fields",
+    "title": "Neural Radiance Fields: From 2D Images to 3D Scenes",
+    "content": `
+
+# Overview
+# Part 0: Camera Calibration and 3D Scanning
+
+Before training NeRF models, we need to calibrate our camera and determine the pose (position and orientation) of each captured image. 
+I utilized the ArUco marker library, specially the Aruco TAG ID 1 and printed a 60MM tag out of it to use as a reference object for 3D Object scanning.
+
+## Camera Calibration Process
+
+Using OpenCV's camera calibration pipeline with ArUco markers:
+
+1. **Marker Detection**: Detected ArUco markers across multiple images from different angles
+2. **Calibration**: Computed intrinsic camera matrix **K** and distortion coefficients using \`cv2.calibrateCamera()\`
+3. **Pose Estimation**: For each new image, used \`cv2.solvePnP()\` to recover the camera pose (rotation and translation)
+4. **Coordinate Systems**: Converted from world-to-camera (w2c) to camera-to-world (c2w) matrices via matrix inversion
+
+The intrinsic camera matrix has the form:
+
+\`\`\`
+K = [[focal_x,    0,      cx],
+     [0,       focal_y,   cy],
+     [0,          0,       1]]
+\`\`\`
+
+Where:
+- **focal_x, focal_y**: Focal lengths (in pixels)
+- **cx, cy**: Principal point (optical center)
+
+## Camera Frustum Visualization
+
+Using the Viser library, we visualized the recovered camera poses in 3D space:
+
+![Camera Frustums in 3D Space](assets/p4/0.1.png)
+
+![Camera Poses Around Object](assets/p4/0.2.png)
+![Camera Frustums in 3D Space](assets/p4/0.3.png)
+![Camera Frustums in 3D Space](assets/p4/0.4.png)
+![Camera Frustums in 3D Space](assets/p4/0.5.png)
+
+
+## Lens Distortion Correction
+
+Initially, captured images exhibited significant **barrel distortion** (fisheye effect) from the phone camera lens. This was corrected using:
+
+\`\`\`python
+new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
+    camera_matrix, dist_coeffs, (W, H), alpha=0
+)
+undistorted = cv2.undistort(img, camera_matrix, dist_coeffs, None, new_camera_matrix)
+\`\`\`
+
+
+# Part 1: Fit a Neural Field to a 2D Image
+
+Before tackling 3D scenes, we start simpler: representing a 2D image as a neural network to build intuition for how neural fields work.
+
+## Concept: Images as Functions
+
+Traditionally, images are grids of pixels. Instead, we represent an image as a **continuous function**:
+
+\`\`\`
+f(x, y) → (R, G, B)
+\`\`\`
+
+A neural network learns this function mapping 2D coordinates to color values.
+
+## Positional Encoding
+
+Raw (x,y) coordinates are **low-frequency** - a simple MLP struggles to represent high-frequency details (sharp edges, textures). We apply **positional encoding** to embed coordinates into a higher-dimensional space:
+
+<div style="text-align: center; font-size: 16px; margin: 10px 0;">
+γ(p) = [sin(2<sup>0</sup>πp), cos(2<sup>0</sup>πp), sin(2<sup>1</sup>πp), cos(2<sup>1</sup>πp), ..., sin(2<sup>L-1</sup>πp), cos(2<sup>L-1</sup>πp)]
+</div>
+
+Where **L** controls the maximum frequency. Higher L captures finer details but increases overfitting risk.
+
+## Network Architecture
+
+\`\`\`python
+class PositionalEncoding:
+    def __init__(self, L: int):
+        self.L = int(L)
+        self.freqs = [2**l * math.pi for l in range(self.L)]
+    
+    def __call__(self, xy):
+        # xy: (N, 2) input coordinates
+        # Returns: (N, 2 + 4*L) encoded features
+        angles = xy.unsqueeze(-1) * self.freqs
+        pe = torch.stack([torch.sin(angles), torch.cos(angles)], dim=-1)
+        return torch.cat([xy, pe.flatten(1)], dim=-1)
+
+def make_mlp(in_dim, width=256, depth=4):
+    layers = [nn.Linear(in_dim, width), nn.ReLU()]
+    for _ in range(depth - 1):
+        layers += [nn.Linear(width, width), nn.ReLU()]
+    layers += [nn.Linear(width, 3), nn.Sigmoid()]
+    return nn.Sequential(*layers)
+\`\`\`
+
+**Training**: Sample random pixels per iteration, compute MSE loss between predicted and true RGB values, optimize via Adam.
+
+## Results: Image Reconstruction
+
+Testing on a provided image with different hyperparameters:
+
+![Original Image](assets/p4/1.1.jpg)
+![Reconstructed Image with Iterations](assets/p4/1.1.1.png)
+![Reconstructed Image with Various Hyperparameters](assets/p4/1.1.3.png)
+
+![Original Image](assets/p4/1.2.jpg)
+![Reconstructed Image with Iterations](assets/p4/1.2.1.png)
+![Reconstructed Image with Training Parameters](assets/p4/1.2.3.png)
+![Training Progression](assets/p4/1.2.2.png)
+
+
+From the results, we can see that the model is able to reconstruct the image with a good level of detail.
+The frequency and width of the model are important for the reconstruction quality.
+Higher frequency and width models are able to capture more details and the model is able to reconstruct the image with a good level of detail.
+The best combo is W=256, L=10 which achieves the highest PSNR with sharp, detailed reconstruction.
+
+# Part 2: Fit a Neural Radiance Field from Multi-view Images
+
+Now we extend to 3D: representing a scene as a **volumetric radiance field**.
+
+## NeRF Core Concept
+
+NeRF represents a 3D scene as a continuous function:
+
+\`\`\`
+F(x, y, z, θ, φ) → (R, G, B, σ)
+\`\`\`
+
+Where:
+- **(x, y, z)**: 3D position in space
+- **(θ, φ)**: Viewing direction  
+- **(R, G, B)**: Emitted color
+- **σ**: Volume density (how opaque the point is)
+
+
+### Part 2.1: Create Rays from Cameras
+Camera to World Coordinate Conversion
+I implemented the transform(c2w, x_c) function to convert points from camera space to world space using the camera-to-world transformation matrix. My implementation handles batched coordinates by first converting 3D points to homogeneous coordinates (appending ones), multiplying by the c2w matrix using PyTorch's @ operator, and extracting the resulting 3D world coordinates. The function automatically detects if the input is already in homogeneous form and handles both cases, making it flexible for different use cases throughout the pipeline.
+Pixel to Camera Coordinate Conversion
+My pixel_to_camera(K, uv, s) function takes pixel coordinates in UV space and transforms them back to 3D camera coordinates. I extract the u and v components separately, stack them with ones to create homogeneous pixel coordinates, then multiply by the inverse of the intrinsic matrix K to get the camera ray direction. Finally, I scale this direction by the depth parameter s to get the actual 3D position. This implementation efficiently handles batched operations by reshaping to 2D, performing the matrix multiplication via transpose operations, then reshaping back to maintain the original batch dimensions.
+Pixel to Ray
+I implemented pixel_to_ray(K, c2w, uv) by combining my previous functions. First, I call pixel_to_camera with unit depth (s=1) to get a point in camera space, then transform it to world space using my transform function. The ray origin is extracted from the last column of the c2w matrix (c2w[..., :3, 3]), and I use a while loop to properly broadcast it to match the batch dimensions of the computed world points. The ray direction is computed as the normalized vector from origin to the transformed point, using torch.linalg.norm for normalization. This function is critical for my entire NeRF pipeline since it converts every pixel into a 3D ray.
+
+### Part 2.2: Sampling
+Sampling Rays from Images
+My RaysData class precomputes all rays for the first training image. I use np.meshgrid with indexing="xy" to generate all pixel coordinates, then add 0.5 to account for pixel centers (a crucial detail for geometric correctness). I precompute all rays by expanding the c2w matrix to match the number of pixels and calling my pixel_to_ray function once. During training, my sample_rays(B) method uses np.random.randint to randomly sample B rays from this precomputed pool. This approach trades memory for speed—I store all 40,000 rays (for a 200x200 image) to avoid recomputation during training.
+Sampling Points along Rays
+My sample_along_rays function creates sample points between near and far bounds along each ray. I use torch.linspace to generate evenly spaced depth values, then implement stratified sampling when perturb=True by computing interval midpoints and randomly sampling within each interval using torch.rand_like. This perturbation prevents overfitting to specific depth locations. For my Lego scene, I used near=2.0, far=6.0, and 128 samples per ray. For my custom object, I adjusted to near=0.15, far=0.65 (much closer to the camera) with the same 128 samples. The final 3D points are computed as ray_origin + ray_direction * depth.
+
+### Part 2.3: Putting the Dataloading All Together
+I created comprehensive visualizations using Viser to verify my implementation. For my first visualization, I sampled 100 random rays with 64 samples each from the first training image, setting perturb=True and point_size=0.02. I then created a more detailed visualization focusing on the top-left corner by sampling from x coordinates 100-200 and y coordinates 0-100, using point_size=0.03 for better visibility. My visualization includes all training camera frustums with scale=0.15 and FOV computed from my intrinsics.
+I verified my UV coordinate ordering by asserting that images_train[0, sample_uvs[:,1], sample_uvs[:,0]] matches dataset.pixels, confirming I correctly handle the (x,y) to (height,width) index flip. The Viser plots clearly show rays emanating from the correct camera positions, all staying within the camera frustum, which validates my coordinate transformations are working correctly.
+
+
+
+![Rays and Samples 100 Random](assets/p4/2.3.1.png)
+
+![Rays and Samples Vis 2](assets/p4/2.3.2.png)
+
+![Rays and Samples Vis 3](assets/p4/2.3.3.png)
+
+![Rays and Samples Vis 4](assets/p4/2.3.4.png)
+
+### Part 2.4: Neural Radiance Field
+Network Architecture
+I built my NeRF class as an 8-layer MLP with 256 hidden dimensions. My architecture uses positional encoding with L=10 frequencies for 3D positions and L=4 frequencies for view directions. The network has two main branches: layers 1-4 process the encoded position, then I concatenate the original encoded position at layer 5 (skip connection), followed by layers 5-8 for deeper processing. The feature vector from layer 8 feeds into two separate heads: a single linear layer for density (sigma) and a two-layer head (256→128→3) for RGB color.
+My PositionalEncoder implementation uses logarithmically-spaced frequencies (powers of 2) and generates sine/cosine embeddings. For positions with L=10, this produces 63-dimensional encodings (3 + 2×3×10), and for directions with L=4, it produces 27-dimensional encodings (3 + 2×3×4). I carefully use lambda functions with bound frequency values to avoid Python closure issues. The network outputs are constrained using sigmoid for RGB (ensuring 0-1 range) and ReLU for sigma (ensuring non-negativity). Crucially, I only concatenate the direction encoding when predicting color, allowing view-dependent appearance while keeping density view-independent.
+
+### Part 2.5: Volume Rendereing and Lego Dataset
+My volrend function implements the discrete volume rendering equation. I compute alpha values as 1 - exp(-sigma * step_size), representing the probability of ray termination at each sample. For transmittance (probability of not terminating before a sample), I use torch.cumsum to compute the cumulative optical depth, subtract the current sample's contribution to get exclusive accumulation, then exponentiate. The weights are transmittance * alphas, and I sum weights * rgbs to get the final color. This implementation passed the provided test with exact numerical precision.
+
+
+The samples cluster in the near/far range (2.0 to 6.0 meters), ensuring computation focuses on where the object actually is.
+
+#### Results: Lego Dataset
+
+The model progressively learns the 3D structure, first getting rough shapes, then refining details and colors.
+I trained for a 1000 iterations with a 10k batch size and a learning rate of 5e-3.
+
+
+![Lego Orbit GIF](assets/p4/2.5.5.gif)
+![Iteration Progression](assets/p4/2.5.1.png)
+![Validation PSNR](assets/p4/2.5.2.png)
+
+Validation PSNR steadily increases, reaching ~26 dB after 1000 iterations. The smooth curve indicates good generalization without overfitting.
+
+The trained NeRF successfully renders the Lego bulldozer from novel viewpoints not in the training set, demonstrating true 3D understanding.
+
+# Part 2.6: Training with Your Own Data
+
+For my custom object dataset, I had to make several key adjustments from the Lego scene. I changed near=0.15 and far=0.65 (compared to 2.0 and 6.0 for Lego) because my object was much closer to the camera. I reduced training to 3,000 iterations with batch size 4,096, finding this sufficient for my scene complexity. I kept the learning rate at 5e-3 and maintained 128 samples per ray for quality. I used the same chunk size of 8,192 for rendering full images.
+
+I experimented extensively with different camera trajectory strategies for rendering novel views. My first approach extracted the starting position from my first training camera: start_pos = c2ws_train[0, :3, 3]. I then used the look_at_origin function to create a camera pose pointing toward the scene center.
+I tried three different rotation strategies: Y-axis, X-axis, and Z-axis to see what works best for the dataset.
+My clockwise_90 function applies a -90° rotation in the camera's local coordinate frame by post-multiplying the rotation matrix with a z-axis rotation matrix. This was necessary because my camera coordinate system wasn't aligned with my desired viewing orientation. 
+
+The most significant challenge was getting the near/far values right. Initially, I might have guessed values similar to Lego, which would have resulted in either sampling empty space (if too far) or clipping the object (if bounds were misplaced). My systematic analysis approach by calculating distances to origin, accounting for ArUco marker size, and visualizing camera distributions was essential for success.
+
+## Dataset
+
+Captured 43 images of an object using an iPhone, with ArUco marker for pose estimation:
+- **Training**: 36 images (83%)
+- **Validation**: 7 images (17%)
+
+
+### Novel View Synthesis - Chipotle Bowl
+
+The Hyper Parameters used for this project are:
+- Learning Rate: 5e-3
+- Batch Size: 4096
+- Number of Samples per Ray: 128
+- Number of Iterations: 3000
+- Near: 0.15
+- Far: 0.65
+- Chunk Size: 8192
+
+![My Object Orbit GIF](assets/p4/2.6.1.gif)
+
+![Loss and PSNR Curve](assets/p4/2.6.1.png)
+
+You can clearly see the training loss decreasing over the iterations. And the PSNR curve is also increasing over the iterations but pretty low with iterations < 1000.
+
+![Iteration Progression](assets/p4/2.6.2.png)
+
+
+`
+}
 
     ];
 
