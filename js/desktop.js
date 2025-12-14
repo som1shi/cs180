@@ -1175,6 +1175,393 @@ You can clearly see the training loss decreasing over the iterations. And the PS
 
 
 `
+},
+{
+    "id": "project5",
+    "name": "Project 5: Diffusion Models",
+    "title": "The Power of Diffusion Models & Flow Matching",
+    "content": `
+
+# Overview
+
+This project explores diffusion models in two parts:
+- **Part A**: Working with pre-trained diffusion models (DeepFloyd IF)
+- **Part B**: Training a flow matching model from scratch on MNIST
+
+# Part A: The Power of Diffusion Models
+
+## Overview
+In this first part of the project, I explored the capabilities of diffusion models using the DeepFloyd IF model. This involved playing with pre-trained models, implementing the diffusion sampling loops from scratch, and manipulating the denoising process for creative tasks like inpainting and optical illusions.
+
+
+## Part 0: Setup and Text Prompts
+
+DeepFloyd IF is a text-to-image model that uses T5 embeddings. To familiarize myself with the model, I generated images using specific text prompts with a fixed random seed of 100.
+
+**Prompts:**
+1. *"an oil painting portrait of an old emir holding a cat in his laps"*
+2. *"a realistic picture of a cow playing football on the moon"*
+3. *"a photo of a monkey ballerina"*
+
+<div align="center">
+  <img src="assets/p5/a/0.1.png" width="30%" />
+  <img src="assets/p5/a/0.2.png" width="30%" />
+  <img src="assets/p5/a/0.3.png" width="30%" />
+</div>
+
+
+
+# Part 1: Sampling Loops
+
+## 1.1 Implementing the Forward Process
+
+The forward process $q(x_t | x_0) takes a clean image and adds Gaussian noise to it over $t$ timesteps. The amount of noise is scaled by alpha_t, allowing us to simulate the gradual degradation of an image.
+
+
+![Forward Process](assets/p5/a/1.1.png)
+
+## 1.2 Classical Denoising
+
+I attempted to recover the original image from the noisy versions using Gaussian blur. As expected, classical filtering fails to recover high-frequency details, resulting in blurry images that do not resemble the original sharp Campanile.
+
+![Classical Denoising](assets/p5/a/1.2.png)
+
+## 1.3 One-Step Denoising
+
+Using the pre-trained DeepFloyd UNet, I estimated the noise epsilon in the image and subtracted it to recover an estimate. While better than Gaussian blur, the one-step reconstruction is imperfect and degrades significantly at higher noise levels t=750.
+
+
+<div style="display:flex; gap:16px; justify-content:flex-start;">
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.3.1.png" height="240">
+    <figcaption>t = 250</figcaption>
+  </figure>
+
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.3.2.png" height="240">
+    <figcaption>t = 500</figcaption>
+  </figure>
+
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.3.3.png" height="240">
+    <figcaption>t = 750</figcaption>
+  </figure>
+</div>
+
+
+
+## 1.4 Iterative Denoising
+
+Standard diffusion sampling involves iteratively removing a small amount of noise. To save computational resources, I implemented strided sampling (skipping timesteps). This method slowly refines the image, resulting in a much cleaner output than the one-step approach.
+
+![Iterative Denoising Process](assets/p5/a/1.4.1.png)
+
+<div style="display:flex; gap:8px; align-items:center;">
+  <img src="assets/p5/a/1.4.2.1.png" height="200">
+  <img src="assets/p5/a/1.4.2.2.png" height="200">
+  <img src="assets/p5/a/1.4.2.3.png" height="200">
+  <img src="assets/p5/a/1.4.2.4.png" height="200">
+  <img src="assets/p5/a/1.4.2.5.png" height="200">
+</div>
+
+
+## 1.5 Diffusion Model Sampling
+
+
+Using the iterative denoising loop implemented above, I generated images from scratch (starting from pure random noise) using the prompt *"a high quality photo"*. Without guidance, the images are coherent but somewhat dull or nonsensical.
+
+
+![Diffusion Sampling](assets/p5/a/1.5.png)
+
+## 1.6 Classifier-Free Guidance (CFG)
+
+To improve image quality, I implemented Classifier-Free Guidance. The resulting images are significantly sharper and more detailed.
+
+
+![CFG Sampling](assets/p5/a/1.6.png)
+
+## 1.7 Image-to-Image Translation
+
+
+
+### 1.7.0 SDEdits
+
+By taking a clean image, adding noise to it up to a certain timestep t (forward process), and then running the iterative denoising process from there, we can "edit" the image. The model projects the noisy image back onto the manifold of natural images. Higher starting noise levels allow for more drastic changes.
+
+Here are the results of the SDEdit process at different noise levels.
+
+![SDEdit Results 1](assets/p5/a/1.7.0.1.png)
+
+**Original Image 2:**
+![Original](assets/p5/a/1.7.0.2a.jpg)
+
+**SDEdit Results 2:**
+![SDEdit Results 2](assets/p5/a/1.7.0.2.png)
+
+**Original Image 3:**
+</br>
+<img src="assets/p5/a/1.7.0.3a.jpg" width="250">
+</br>
+
+
+**SDEdit Results 3:**
+![SDEdit Results 3](assets/p5/a/1.7.0.3.png)
+
+### 1.7.1 Editing Web Images
+
+Here are some results of the editing web images.
+
+<h3>Image 1</h3>
+<div style="display:flex; gap:12px;">
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/og.png" height="120">
+    <figcaption>Original</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/1.png" height="120">
+    <figcaption>i<sub>start</sub> = 1</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/3.png" height="120">
+    <figcaption>i<sub>start</sub> = 3</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/5.png" height="120">
+    <figcaption>i<sub>start</sub> = 5</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/7.png" height="120">
+    <figcaption>i<sub>start</sub> = 7</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/10.png" height="120">
+    <figcaption>i<sub>start</sub> = 10</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.1/20.png" height="120">
+    <figcaption>i<sub>start</sub> = 20</figcaption>
+  </figure>
+</div>
+
+<h3>Image 2</h3>
+<div style="display:flex; gap:12px;">
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/og.png" height="120">
+    <figcaption>Original</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/1.png" height="120">
+    <figcaption>i<sub>start</sub> = 1</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/3.png" height="120">
+    <figcaption>i<sub>start</sub> = 3</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/5.png" height="120">
+    <figcaption>i<sub>start</sub> = 5</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/7.png" height="120">
+    <figcaption>i<sub>start</sub> = 7</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/10.png" height="120">
+    <figcaption>i<sub>start</sub> = 10</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.2/20.png" height="120">
+    <figcaption>i<sub>start</sub> = 20</figcaption>
+  </figure>
+</div>
+
+<h3>Image 3</h3>
+<div style="display:flex; gap:12px;">
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/og.png" height="120">
+    <figcaption>Original</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/1.png" height="120">
+    <figcaption>i<sub>start</sub> = 1</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/3.png" height="120">
+    <figcaption>i<sub>start</sub> = 3</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/5.png" height="120">
+    <figcaption>i<sub>start</sub> = 5</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/7.png" height="120">
+    <figcaption>i<sub>start</sub> = 7</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/10.png" height="120">
+    <figcaption>i<sub>start</sub> = 10</figcaption>
+  </figure>
+  <figure style="margin:0; text-align:center;">
+    <img src="assets/p5/a/1.7.1.3/20.png" height="120">
+    <figcaption>i<sub>start</sub> = 20</figcaption>
+  </figure>
+</div>
+
+
+### 1.7.2 Inpainting
+
+By modifying the sampling loop, we can perform inpainting. At each step, I enforced the pixels inside a known region (mask = 0) to match the original image (with added noise), while allowing the model to generate new content inside the masked area (mask = 1).
+
+![](assets/p5/a/1.7.2.1.png)
+![](assets/p5/a/1.7.2.2.png)
+![](assets/p5/a/1.7.2.3.png)
+
+### 1.7.3 Text-Conditional Image-to-image Translation
+
+This is an extension of SDEdit where we provide a specific text prompt to guide the generation, rather than a generic one. 
+
+![](assets/p5/a/1.7.3.1.png)
+![](assets/p5/a/1.7.3.2.png)
+![](assets/p5/a/1.7.3.3.png)
+
+## 1.8 Visual Anagrams
+
+I implemented an algorithm to create optical illusions. The model denoises an image x_twith prompt A, and simultaneously flips the image, denoises with prompt B, and flips it back. By averaging these noise estimates, we create an image that looks like one thing right-side up and another upside down.
+
+**Prompt 1:** "an oil painting portrait of an old emir holding a cat in his laps"
+**Prompt 2:** "a lithograph of a sword fight"
+
+![](assets/p5/a/1.8.1.png)
+
+**Prompt 1:** "a photo of a monkey ballerina"
+**Prompt 2:** "a realistic picture of a cow playing football on the moon"
+
+![](assets/p5/a/1.8.2.png)
+
+## 1.9 Hybrid Images
+
+Similar to the visual anagrams, hybrid images are created by combining noise estimates from two different prompts. I used a low-pass filter for one noise estimate and a high-pass filter for the other. This results in an image that looks like one object from afar (low frequency) and another from up close (high frequency).
+
+![](assets/p5/a/1.9.1.png)
+
+![](assets/p5/a/1.9.2.png)
+
+
+
+# Part B: Flow Matching from Scratch
+
+# Part 1: Training a Single-Step Denoising UNet
+
+
+## 1.2 Using the UNet to Train a Denoiser
+
+### Noising Process Visualization
+
+Visualized noising with σ=[0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0].
+
+
+![Noising Visualization](assets/p5/b/1.2.png)
+
+The visualization demonstrates the forward process where clean MNIST digits are progressively corrupted by Gaussian noise. At 0.0 the image is pristine. As sigma increases, the original signal drowns out; by sigma=1, the image is indistinguishable from pure Gaussian noise.
+
+### 1.2.1 Training
+
+### 1.2.1 Training
+
+**Training Loss Curve:**
+
+![Training Loss](assets/p5/b/1.2.1.1.png)
+
+The model learns relatively quickly. Even after Epoch 1, the UNet successfully identifies high-level structures of the digits, though the edges remain blurry. By Epoch 5, the denoised outputs are slighly sharper, and the model more accurately removes the background 
+
+**Results after Epoch 1:**
+
+![Epoch 1 Results](assets/p5/b/1.2.1.2.png)
+
+**Results after Epoch 5:**
+
+![Epoch 5 Results](assets/p5/b/1.2.1.3.png)
+
+### 1.2.2 Out-of-Distribution Testing
+
+Tested denoiser on varying noise levels.
+
+![OOD Testing](assets/p5/b/1.2.2.png)
+
+The model seems to geeneralize poorly to higher noise levels, leaving significant graininess and artifacts.
+
+### 1.2.3 Denoising Pure Noise
+
+**Training Loss Curve:**
+
+![Pure Noise Training Loss](assets/p5/b/1.2.3.1.png)
+
+**Results after Epoch 1:**
+
+![Pure Noise Epoch 1](assets/p5/b/1.2.3.2.png)
+
+**Results after Epoch 5:**
+
+![Pure Noise Epoch 5](assets/p5/b/1.2.3.3.png)
+
+This clearly shows that a single-step denoiser is **not** a generative model. When fed pure noise, the model produces blurry "average" images or ghostly blobs that vaguely resemble digits but lack coherence. It maps the noise to the manifold of "clean digits" in a single jump, which results in the mean of the posterior distribution rather than a specific sample.
+
+From research, I understand that this happens because the model optimizes an **MSE loss**. Minimizing MSE forces the model to predict the mean of the posterior distribution given the input. When the input is pure noise (which contains no information about the specific digit), the optimal prediction minimizing the sum of squared distances to all possible training images is the average of all digits (that's what the model is doing).
+
+# Part 2: Training a Flow Matching Model
+
+## 2.2 Training the UNet
+
+**Training Loss Curve:**
+
+![Time-Conditioned Training Loss](assets/p5/b/2.2.png)
+
+## 2.3 Sampling from the UNet
+
+**Epoch 1:**
+
+![Sampling Epoch 1](assets/p5/b/2.3.1.png)
+
+**Epoch 5:**
+
+![Sampling Epoch 5](assets/p5/b/2.3.2.png)
+
+**Epoch 10:**
+
+![Sampling Epoch 10](assets/p5/b/2.3.3.png)
+
+
+
+## 2.5 Training the UNet
+
+**Training Loss Curve:**
+
+![Class-Conditioned Training Loss](assets/p5/b/2.5.png)
+
+## 2.6 Sampling from the UNet
+
+**Epoch 1:**
+
+![Class-Conditioned Epoch 1](assets/p5/b/2.6.1.1.png)
+
+**Epoch 5:**
+
+![Class-Conditioned Epoch 5](assets/p5/b/2.6.1.2.png)
+
+**Epoch 10:**
+
+![Class-Conditioned Epoch 10](assets/p5/b/2.6.1.3.png)
+
+**Without Learning Rate Scheduler:**
+
+To compensate for the removal of the exponential learning rate scheduler, I lowered the learning rate by an order of magnitude, from the initial 1e-2 used in the scheduled run to a constant 1e-3.
+
+The scheduled run starts with a high learning rate 1e-2 to escape local minima quickly and then decays to refine details. Without the scheduler, starting at 1e-2 would cause the optimization to oscillate violently around the minimum. A constant 1e-3 provides stable convergence but lacks the efficiency of the "warm-up and cool-down" strategy.
+
+Hence, the final images are comparable but slightly noisier. The loss curve is generally smoother but converges more slowly compared to the aggressive initial drop seen in the scheduled run.
+![Without LR Scheduler](assets/p5/b/2.6.2.png)
+
+`
 }
 
     ];
